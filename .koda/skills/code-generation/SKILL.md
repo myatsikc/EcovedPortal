@@ -12,6 +12,7 @@
 6. Строго соблюдайте правила комментирования из `AGENTS.md` (docstrings, JSDoc, акцент на ЗАЧЕМ/КАК).
 7. Убедитесь, что REST-контракт точно соответствует технической спецификации.
 8. Не инициируйте `git commit` или `git push` без явной команды пользователя.
+9. Не добавляйте разделы "Future Steps", "Next Steps" и аналогичные без прямой команды пользователя.
 
 ## Workflow
 1. Read tech spec -> 2. Generate Backend -> 3. Generate Frontend -> 4. Apply comments & structure -> 5. Provide testing/deployment checklist -> 6. Wait for user feedback.
