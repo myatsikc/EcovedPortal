@@ -1,0 +1,1 @@
+Stop-Process -Id (netstat -ano | findstr :8000 | ForEach-Object { $_.Split()[-1] }) -Force -ErrorAction SilentlyContinue

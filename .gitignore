@@ -1,0 +1,30 @@
+# Зависимости
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Окружение
+.env
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Логи
+*.log
