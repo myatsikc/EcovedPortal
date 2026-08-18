@@ -1,4 +1,4 @@
-/** Страница команды */
+/** Страница "О команде" портала EcovedPortal. */
 
 import { Container } from "@/components/shared/container";
 
@@ -8,7 +8,7 @@ export default function TeamPage() {
       <h2
         style={{ marginBottom: "12px", fontWeight: 600, color: "var(--mui-palette-text-primary)" }}
       >
-        Команда
+        О команде
       </h2>
       <p>Информация о команде скоро появится.</p>
     </Container>

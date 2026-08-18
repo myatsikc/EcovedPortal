@@ -40,11 +40,7 @@ export function NewsItem({ news }: NewsItemProps) {
           }}
         />
       )}
-      <div
-        style={{
-          padding: 12,
-        }}
-      >
+      <div style={{ padding: 12 }}>
         <span
           style={{
             color: "var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.6))",
