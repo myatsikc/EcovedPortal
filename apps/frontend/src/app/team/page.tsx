@@ -7,7 +7,7 @@ import { Container } from "@/components/shared/container";
 export default function TeamPage() {
   return (
     <Container>
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+      <Typography style={{ marginBottom: "12px", fontWeight: 600 }}>
         Команда
       </Typography>
       <Typography>Информация о команде скоро появится.</Typography>
