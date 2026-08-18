@@ -2,11 +2,11 @@
 
 Два пункта: «Новости» (активный по умолчанию) и «О команде».
 Активный пункт выделяется зелёным цветом и жирностью.
+Используем HTML nav вместо MUI Stack для совместимости с SSR.
 */
 
 "use client";
 
-import { Link as MuiLink, Stack } from "@mui/material";
 import { usePathname } from "next/navigation";
 
 const MENU_ITEMS = [
@@ -18,29 +18,34 @@ export function NavMenu() {
   const pathname = usePathname();
 
   return (
-    <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+    <nav
+      style={{
+        display: "flex",
+        gap: "12px",
+        marginTop: 4,
+      }}
+    >
       {MENU_ITEMS.map((item) => {
         const isActive = pathname === item.href;
         return (
-          <MuiLink
+          <a
             key={item.href}
             href={item.href}
-            underline="none"
-            sx={{
+            style={{
               color: isActive
                 ? "var(--mui-palette-success-main, #4CAF50)"
-                : "text.primary",
+                : "var(--mui-palette-text-primary)",
               fontWeight: isActive ? 700 : 400,
               fontSize: "1rem",
-              borderBottom: isActive ? "2px solid" : "2px solid transparent",
-              borderBottomColor: "var(--mui-palette-success-main, #4CAF50)",
+              borderBottom: isActive ? "2px solid var(--mui-palette-success-main, #4CAF50)" : "2px solid transparent",
+              textDecoration: "none",
               transition: "all 0.2s ease",
             }}
           >
             {item.label}
-          </MuiLink>
+          </a>
         );
       })}
-    </Stack>
+    </nav>
   );
 }

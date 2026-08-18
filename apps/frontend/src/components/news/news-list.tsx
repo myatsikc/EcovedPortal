@@ -8,8 +8,6 @@
 
 import { useEffect, useRef } from "react";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
-
 import { useNews } from "@/lib/api";
 import { NewsItem } from "@/components/news/news-item";
 
@@ -52,18 +50,21 @@ export function NewsList() {
   // Обработка загрузки
   if (isLoading) {
     return (
-      <Box sx={{ textAlign: "center", py: 6 }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ textAlign: "center", padding: "24px 0" }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" style={{ animation: "spin 1s linear infinite" }}>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25"/>
+          <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" opacity="0.75"/>
+        </svg>
+      </div>
     );
   }
 
   // Обработка ошибки
   if (error) {
     return (
-      <Typography color="error" sx={{ textAlign: "center", py: 4 }}>
+      <p style={{ textAlign: "center", padding: "16px 0", color: "var(--mui-palette-error-main, #d32f2f)" }}>
         Ошибка загрузки новостей. Попробуйте обновить страницу.
-      </Typography>
+      </p>
     );
   }
 
@@ -73,26 +74,29 @@ export function NewsList() {
   // Если новостей нет
   if (allNews.length === 0) {
     return (
-      <Typography sx={{ textAlign: "center", py: 4 }}>
+      <p style={{ textAlign: "center", padding: "16px 0" }}>
         Новостей пока нет.
-      </Typography>
+      </p>
     );
   }
 
   return (
     <>
-      {allNews.map((news) => (
-        <NewsItem key={news.id} news={news} />
+      {allNews.map((news, index) => (
+        <NewsItem key={index} news={news} />
       ))}
 
       {/* Наблюдатель для триггера бесконечной прокрутки */}
-      <Box ref={observerTarget} sx={{ height: 1, py: 2 }} />
+      <div ref={observerTarget} style={{ height: 1, padding: "8px 0" }} />
 
       {/* Индикатор загрузки следующей страницы */}
       {isFetchingNextPage && (
-        <Box sx={{ textAlign: "center", py: 3 }}>
-          <CircularProgress size={24} />
-        </Box>
+        <div style={{ textAlign: "center", padding: "12px 0" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" style={{ animation: "spin 1s linear infinite" }}>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25"/>
+            <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" opacity="0.75"/>
+          </svg>
+        </div>
       )}
     </>
   );

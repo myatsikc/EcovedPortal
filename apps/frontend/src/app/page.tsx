@@ -4,20 +4,17 @@
 Данные загружаются через TanStack Query из API бэкенда.
 */
 
-import { Typography } from "@mui/material";
-
 import { Container } from "@/components/shared/container";
 import { NewsList } from "@/components/news/news-list";
 
 export default function HomePage() {
   return (
     <Container>
-      <Typography
-        variant="h5"
-        sx={{ mb: 3, fontWeight: 600, color: "text.primary" }}
+      <h5
+        style={{ marginBottom: "12px", fontWeight: 600, color: "var(--mui-palette-text-primary)" }}
       >
         Новости
-      </Typography>
+      </h5>
       <NewsList />
     </Container>
   );

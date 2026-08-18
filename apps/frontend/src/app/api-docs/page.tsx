@@ -1,16 +1,16 @@
 /** Страница документации API */
 
-import { Typography } from "@mui/material";
-
 import { Container } from "@/components/shared/container";
 
 export default function ApiDocsPage() {
   return (
     <Container>
-      <Typography style={{ marginBottom: "12px", fontWeight: 600 }}>
+      <h2
+        style={{ marginBottom: "12px", fontWeight: 600, color: "var(--mui-palette-text-primary)" }}
+      >
         Документация API
-      </Typography>
-      <Typography>Здесь будет документация API.</Typography>
+      </h2>
+      <p>Здесь будет документация API.</p>
     </Container>
   );
 }

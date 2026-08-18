@@ -1,9 +1,8 @@
 /** Полное отображение одной новости.
 
 Включает изображение, дату публикации и текстовое содержание.
+Используем HTML div вместо MUI Card для совместимости с SSR.
 */
-
-import { Card, CardMedia, CardContent, Typography } from "@mui/material";
 
 import type { NewsItem } from "@/types/news";
 
@@ -20,50 +19,52 @@ export function NewsItem({ news }: NewsItemProps) {
   });
 
   return (
-    <Card
-      sx={{
-        mb: 3,
+    <div
+      style={{
+        marginBottom: 12,
         overflow: "hidden",
         transition: "box-shadow 0.3s ease",
-        "&:hover": {
-          boxShadow: "var(--mui-shadows-4, 0 8px 25px rgba(0,0,0,0.1))",
-        },
+        borderRadius: 2,
+        boxShadow: "0 2px 4px -1px rgba(0,0,0,0.2), 0 1px 1px 0px rgba(0,0,0,0.14), 0 1px 3px 0px rgba(0,0,0,0.12)",
       }}
     >
       {news.image_url && (
-        <CardMedia
-          component="img"
-          image={news.image_url}
+        <img
+          src={news.image_url}
           alt={`Новость от ${formattedDate}`}
-          sx={{
+          style={{
             width: "100%",
             height: 240,
             objectFit: "cover",
+            display: "block",
           }}
         />
       )}
-      <CardContent sx={{ p: 3 }}>
-        <Typography
-          variant="caption"
-          sx={{
-            color: "text.secondary",
+      <div
+        style={{
+          padding: 12,
+        }}
+      >
+        <span
+          style={{
+            color: "var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.6))",
             display: "block",
-            mb: 1.5,
+            marginBottom: 6,
           }}
         >
           {formattedDate}
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
+        </span>
+        <p
+          style={{
             whiteSpace: "pre-wrap",
             lineHeight: 1.7,
-            color: "text.primary",
+            color: "var(--mui-palette-text-primary)",
+            margin: 0,
           }}
         >
           {news.content}
-        </Typography>
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+    </div>
   );
 }

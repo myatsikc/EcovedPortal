@@ -1,0 +1,25 @@
+/** Глобальные стили и CSS variables для MUI темы.
+
+Используем CSS variables вместо MUI ThemeProvider,
+так как theme содержит функции, несовместимые с SSR.
+*/
+
+:root {
+  /* Цвета MUI */
+  --mui-palette-success-main: #4CAF50;
+  --mui-palette-background-paper: #fff;
+  --mui-palette-divider: rgba(0, 0, 0, 0.12);
+  --mui-palette-text-primary: rgba(0, 0, 0, 0.87);
+  --mui-palette-primary-main: #1976d2;
+  --mui-shape-borderRadius: 2px;
+
+  /* Шрифты */
+  --mui-typography-fontFamily: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+
+body {
+  font-family: var(--mui-typography-fontFamily);
+  margin: 0;
+  padding: 0;
+  background-color: var(--mui-palette-background-paper);
+}

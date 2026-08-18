@@ -2,24 +2,23 @@
 
 Отображает название с акцентом на слове "Эко" (зелёный цвет).
 Фиксируется в верхней части экрана при скролле.
+Используем h1 вместо MUI Typography, чтобы избежать проблем с SSR.
 */
-
-import { Typography } from "@mui/material";
 
 export function Header() {
   return (
-    <Typography
-      variant="h4"
-      sx={{
+    <h1
+      style={{
         fontWeight: "bold",
-        fontSize: { xs: "1.5rem", sm: "2rem" },
+        fontSize: "1.5rem",
         userSelect: "none",
+        margin: 0,
       }}
     >
       <span style={{ color: "var(--mui-palette-success-main, #4CAF50)" }}>
         Эко
       </span>
       <span>веды</span>
-    </Typography>
+    </h1>
   );
 }
