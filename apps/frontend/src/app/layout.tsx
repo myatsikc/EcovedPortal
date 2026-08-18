@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   description: "Портал экологического движения Эковеды",
 };
 
+// Отключаем статическую генерацию — MUI theme содержит функции
+export const dynamic = 'force-dynamic';
+
 // Создаём QueryClient на уровне модуля, чтобы переиспользовать его
 const queryClient = new QueryClient();
 
