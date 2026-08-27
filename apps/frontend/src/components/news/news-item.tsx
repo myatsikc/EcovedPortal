@@ -34,8 +34,10 @@ export function NewsItem({ news }: NewsItemProps) {
           alt={`Новость от ${formattedDate}`}
           style={{
             width: "100%",
-            height: 240,
-            objectFit: "cover",
+            height: "auto",
+            maxHeight: 400,
+            objectFit: "contain",
+            backgroundColor: "#f5f5f5",
             display: "block",
           }}
         />
