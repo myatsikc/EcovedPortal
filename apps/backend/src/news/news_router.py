@@ -11,7 +11,7 @@ from .news_stub import NEWS_STUB
 router = APIRouter(prefix="/api/news", tags=["news"])
 
 
-@router.get("/")
+@router.get("")
 def get_news(
     limit: int = Query(default=10, ge=1, description="Количество новостей для возврата"),
     offset: int = Query(default=0, ge=0, description="Смещение (начиная с какой новости отдавать"),

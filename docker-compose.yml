@@ -26,10 +26,13 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
+      args:
+        # Передаётся на этапе сборки: Next.js запекает rewrites в манифест
+        API_PROXY_URL: http://backend:8000
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - API_PROXY_URL=http://backend:8000
     networks:
       - ecoved-network
     restart: unless-stopped

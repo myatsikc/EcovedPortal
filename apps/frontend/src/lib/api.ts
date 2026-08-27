@@ -1,14 +1,13 @@
 /** API-клиент для работы с новостями через TanStack Query.
 
 Использует useInfiniteQuery для поддержки бесконечной прокрутки.
-Базовый URL берётся из переменной окружения NEXT_PUBLIC_API_URL.
+Запросы идут по относительному пути /api/news и проксируются на бэкенд
+через rewrites в next.config.ts — это работает одинаково в браузере и при SSR.
 */
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import type { NewsResponse } from "@/types/news";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /** Параметры страницы для бесконечной прокрутки. */
 interface NewsQueryParams {
@@ -22,7 +21,7 @@ async function fetchNewsPage({
   limit = 10,
 }: NewsQueryParams): Promise<NewsResponse> {
   const response = await fetch(
-    `${API_BASE}/api/news/?limit=${limit}&offset=${pageParam}`
+    `/api/news/?limit=${limit}&offset=${pageParam}`
   );
   if (!response.ok) {
     throw new Error(`Ошибка загрузки новостей: ${response.status}`);

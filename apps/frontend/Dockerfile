@@ -1,5 +1,10 @@
 FROM node:22-alpine AS builder
 
+# URL бэкенда для проксирования /api/*. Подставляется при сборке
+# (build-arg), т.к. Next.js запекает rewrites в routes-manifest.json.
+ARG API_PROXY_URL=http://localhost:8000
+ENV API_PROXY_URL=$API_PROXY_URL
+
 WORKDIR /app
 
 # Устанавливаем зависимости
