@@ -12,5 +12,5 @@ COPY src/ ./src/
 # Открываем порт
 EXPOSE 8000
 
-# Запускаем uvicorn
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Запускаем uvicorn (без --reload в продакшене)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

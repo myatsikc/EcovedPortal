@@ -1,33 +1,26 @@
-# Сетевые драйверы Docker
-
 # Сеть для проекта
 networks:
   ecoved-network:
     driver: bridge
 
-# Бэкенд: FastAPI
 services:
+  # Бэкенд: FastAPI (порт 8000 — только внутренняя сеть)
   backend:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./apps/backend/src:/app/src
     environment:
       - PORT=8000
     networks:
       - ecoved-network
     restart: unless-stopped
 
-  # Фронтенд: Next.js
+  # Фронтенд: Next.js (порт 3000 — наружу, проброшен роутером)
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
       args:
-        # Передаётся на этапе сборки: Next.js запекает rewrites в манифест
         API_PROXY_URL: http://backend:8000
     ports:
       - "3000:3000"
