@@ -111,6 +111,10 @@ Docker build занимает 2+ минуты. Используйте его д�
 
 ### Скрипт деплоя EcovedPortal (сервер)
 Данный скрипт приведен тут, чтобы агент при необходимости давал мне новый скрипт, если его необходимо актуализировать:
+```
+# Скрипт деплоя EcovedPortal (сервер)
+# Запуск: powershell -ExecutionPolicy Bypass -File C:\ecoved-portal\deploy.ps1
+# Или: создать .bat обёртку с флагом -NoExit
 
 Write-Host "=== EcovedPortal Deployment ===" -ForegroundColor Cyan
 Write-Host ""
@@ -138,3 +142,4 @@ Write-Host "Логи: docker compose -f C:\ecoved-portal\docker-compose.yml logs
 Write-Host ""
 Write-Host "Нажмите Enter для закрытия окна..." -ForegroundColor DarkGray
 Read-Host
+```
