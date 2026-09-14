@@ -107,3 +107,34 @@ Docker build занимает 2+ минуты. Используйте его д�
 ### Доступ
 - **RDP:** Пользователь `myatsikc_server` (для администрирования Windows).
 - **SSH:** Для выполнения команд Docker (`docker compose up...`).
+
+
+### Скрипт деплоя EcovedPortal (сервер)
+Данный скрипт приведен тут, чтобы агент при необходимости давал мне новый скрипт, если его необходимо актуализировать:
+
+Write-Host "=== EcovedPortal Deployment ===" -ForegroundColor Cyan
+Write-Host ""
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "Шаг 1: Обновление кода из Git..."
+git pull origin master
+
+Write-Host "Шаг 2: Остановка старых контейнеров..."
+docker compose -f "C:\ecoved-portal\docker-compose.yml" down --remove-orphans
+
+Write-Host "Шаг 3: Сборка и запуск..."
+docker compose -f "C:\ecoved-portal\docker-compose.yml" up -d --build
+
+Write-Host ""
+Write-Host "Ожидание запуска (10 секунд)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 10
+
+Write-Host ""
+Write-Host "=== Готово ===" -ForegroundColor Green
+Write-Host "Сайт: http://zelenavorona.ru (80/443 -> 3000)"
+Write-Host "Логи: docker compose -f C:\ecoved-portal\docker-compose.yml logs -f"
+
+Write-Host ""
+Write-Host "Нажмите Enter для закрытия окна..." -ForegroundColor DarkGray
+Read-Host
