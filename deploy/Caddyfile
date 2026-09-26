@@ -1,0 +1,84 @@
+# Caddy — reverse proxy и TLS для Эко́вый портал.
+#
+# Caddy принимает 80/443 и проксирует ВСЁ: /api/* на бэкенд, остальное на
+# фронтенд-контейнер. Статику он не раздаёт — фронтенд работает в своём контейнере
+# (Next.js `npm run start`), см. frontend в docker-compose.yml.
+#
+# Адреса берутся из переменных окружения, которые задаёт docker-compose.yml, поэтому
+# при переносе на другой домен файл править не нужно:
+#
+#   CADDY_SITE_ADDRESS=localhost         локальная проверка, сертификат внутренний
+#   CADDY_SITE_ADDRESS=zelenavorona.ru   Let's Encrypt, HTTP сам редиректится на HTTPS
+#
+# Проверить конфиг, не запуская контейнер:
+#   docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile
+
+{$CADDY_SITE_ADDRESS:localhost} {
+	# Источник сертификата. Значение задаётся в .env переменной CADDY_TLS:
+	#
+	#   internal        сертификат от собственного CA Caddy. Для разработки.
+	#   <адрес почты>   Let's Encrypt: Caddy выпускает и продлевает сертификат сам.
+	#
+	# По умолчанию — internal, и это намеренно значение «безопасное по ошибке».
+	# Без этой директивы Caddy для любого ПУБЛИЧНОГО имени идёт к Let's Encrypt,
+	# поэтому запуск с CADDY_SITE_ADDRESS=zelenavorona.ru на рабочей машине начал бы
+	# получать боевой сертификат там, где проверка домена заведомо не проходит
+	# (95.165.12.202 на эту машину не проброшен). Неудачные попытки считаются
+	# лимитами Let's Encrypt, а не безобидными ретраями.
+	tls {$CADDY_TLS:internal}
+
+	# Заголовки безопасности.
+	#
+	# Strict-Transport-Security отдаём всегда: на http://localhost браузер его
+	# игнорирует (HSTS применяется только к HTTPS-ответам), а на боевом адресе
+	# делает ровно то, что нужно.
+	#
+	# max-age — 6 месяцев и БЕЗ includeSubDomains: за поддомены (dashboard.*,
+	# admin.*) отвечает другой сервер, и ошибка в их настройке отбросила бы их
+	# с HTTPS на месяцы.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=15552000"
+		# Убираем заголовок Server, который выдаёт версию Caddy.
+		-Server
+	}
+
+	# API бэкенда: /api/* плюс Swagger UI FastAPI (/docs, /redoc, /openapi.json).
+	#
+	# CORS здесь не нужен: фронтенд обращается к относительному /api/v1
+	# (NEXT_PUBLIC_API_URL в docker-compose.yml), то есть на тот же origin, с
+	# которого загружена страница, а однодоменные запросы браузер не блокирует.
+	# Если появится фронтенд на другом домене — CORS настраивать на бэкенде
+	# (CORSMiddleware в backend/app/main.py), а не прокси.
+	#
+	# Ограничение тела запроса держим на этом маршруте, а не на всём сайте:
+	# 100MB — под загрузку медиа в медиабиблиотеку (см. MAX_UPLOAD_SIZE_MB в
+	# backend). Статические файлы фронтенда лимит не должен урезать вовсе.
+	# 413 отдаёт сам Caddy, до бэкенда запрос не доходит. Проверить:
+	#   curl -X POST -F file=@big.jpg https://адрес/api/v1/media/upload
+	@api path /api/* /docs /docs/* /redoc /openapi.json
+	handle @api {
+		request_body {
+			max_size 100MB
+		}
+		reverse_proxy {$BACKEND_URL:backend:8000}
+	}
+
+	# Всё остальное — фронтенд. Next.js сам отдаёт и маршруты вроде /news, поэтому
+	# try_files для клиентских маршрутов не нужен.
+	handle {
+		reverse_proxy {$FRONTEND_URL:frontend:3000}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+# Редирект HTTP -> HTTPS включается автоматически для адреса с доменным именем:
+# Caddy сам получает сертификат и сам настраивает редирект, отдельная директива
+# redir не нужна.

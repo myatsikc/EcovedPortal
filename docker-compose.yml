@@ -1,7 +1,18 @@
+# Имя проекта задаём явно, а не оставляем Compose выводить его из имени папки.
+#
+# WHY: по умолчанию имя проекта = имя каталога, и на разных машинах оно разное
+# (репозиторий лежит в EcovedPortal, а на сервере в ecoved-portal). Из имени проекта
+# складываются имена томов, и без этой строки том с сертификатом назывался бы
+# ecovedportal_caddy_data на одной машине и ecoved-portal_caddy_data на другой —
+# при переносе Compose создал бы ПУСТОЙ том, Caddy выпустил бы сертификат заново,
+# а старые выпуски одного домена упираются в недельный лимит Let's Encrypt.
+name: ecovedportal
+
 # Сеть для проекта
 networks:
   ecoved-network:
     driver: bridge
+
 
 services:
   # Бэкенд: FastAPI (порт 8000 — только внутренняя сеть)
@@ -15,15 +26,20 @@ services:
       - ecoved-network
     restart: unless-stopped
 
-  # Фронтенд: Next.js (порт 3000 — наружу, проброшен роутером)
+  # Фронтенд: Next.js (единственная точка входа для всего внешнего трафика)
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
       args:
         API_PROXY_URL: http://backend:8000
+    # WHY только loopback: наружу фронтенд отдаёт Caddy (сервис caddy ниже) на 80/443.
+    # Проброс `3000:3000` оставлял второй, незащищённый вход — http://IP:3000 в обход
+    # TLS и HSTS. 127.0.0.1 сохраняет отладку на самой машине (http://localhost:3000),
+    # но закрывает доступ из локальной сети и из интернета.
+    # ВНИМАНИЕ: роутер должен пробрасывать 80/443 на порты Caddy, а не на 3000.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - API_PROXY_URL=http://backend:8000
     networks:
@@ -31,3 +47,57 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  # Caddy: TLS-терминация и выдача фронтенда. Единственная точка входа снаружи.
+  # WHY bridge-сеть, а не network_mode: host: в bridge Caddy резолвит `frontend`
+  # и `backend` через Docker DNS. В host-сети Docker DNS не работает, и адреса
+  # пришлось бы хардкодить через 127.0.0.1 с опубликованными наружу портами.
+  caddy:
+    image: caddy:2
+    container_name: ecoved-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Имя, для которого Caddy слушает 80/443 и выпускает сертификат.
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:-localhost}
+      # Источник сертификата: `internal` -> собственный CA Caddy (разработка),
+      # адрес почты -> Let's Encrypt (сервер).
+      #
+      # WHY default = internal: ошибиться должно было бы безопасно. Если переменную
+      # не задала машина, где ACME заведомо не пройдёт, Caddy не начнёт стучаться к
+      # Let's Encrypt и тратить лимиты выпуска на этот домен.
+      - CADDY_TLS=${CADDY_TLS:-internal}
+      # Куда уходят /api/* и всё остальное. Имена сервисов из этой же сети.
+      - BACKEND_URL=backend:8000
+      - FRONTEND_URL=frontend:3000
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Данные ACME: аккаунт Let's Encrypt и выпущенные сертификаты. Без этого тома
+      # каждый `docker compose up` выпускает сертификат заново, а повторные выпуски
+      # одного домена = бан от Let's Encrypt на неделю.
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - ecoved-network
+    depends_on:
+      - frontend
+    healthcheck:
+      # Проверка конфига, а не HTTP-ответа сайта: healthcheck не зависит ни от
+      # состояния фронтенда, ни от того, выпущен сертификат или нет.
+      #
+      # Именно поэтому здесь НЕ `--resume`: validate не должен ничего сохранять.
+      # Постоянный перезапуск caddy с `--resume` перечитывает автосохранённый конфиг
+      # и при повторных выпусках одного домена упирается в лимит Let's Encrypt.
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 10s
+
+# Tom для сертификатов и ACME-аккаунта Caddy. НЕ удалять: потеря = повторный выпуск.
+volumes:
+  caddy_data:
+  caddy_config:
+
