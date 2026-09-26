@@ -97,16 +97,16 @@ Docker build занимает 2+ минуты. Используйте его д�
 ```
 Интернет -> домен zelenavorona.ru (A-запись на 95.165.12.202)
          -> роутер 192.168.1.254 (проброс 80/443)
-         -> 192.168.1.65:80/443  = контейнер caddy (TLS, редирект HTTP->HTTPS)
+         -> 192.168.1.67:80/443  = контейнер caddy (TLS, редирект HTTP->HTTPS)
          -> frontend:3000        = Next.js (страницы + прокси /api и /static)
          -> backend:8000         = FastAPI (только внутри Docker-сети)
 ```
 
 ### Серверная часть
 - **Железо:** Домашний ПК, подключенный к сети.
-- **IP:** Локальный статический `192.168.1.65`.
+- **IP:** Локальный статический `192.168.1.67`. (Рабочая машина разработчика при этом на `192.168.1.66` — не путать.) В документации здесь долгое время был ошибочно записан `192.168.1.65`: если на роутере цель проброса осталась `.65`, запросы до Caddy не доходят, а в логах ACME это выглядит как `Connection refused`.
 - **Внешний IP:** `95.165.12.202` — статический, куплен у провайдера. На него должны указывать A-записи `zelenavorona.ru` и `www.zelenavorona.ru`; проверка: `Resolve-DnsName zelenavorona.ru` и `Resolve-DnsName www.zelenavorona.ru` (проверено 2026-09-14: обе ведут на `95.165.12.202`).
-- **Роутер:** `192.168.1.254` — проброс **80 → 192.168.1.65:80** и **443 → 192.168.1.65:443** (на Caddy). Исторически проброс шёл на порт 3000 — это было конфигурацией без TLS.
+- **Роутер:** `192.168.1.254` — проброс **80 → 192.168.1.67:80** и **443 → 192.168.1.67:443** (на Caddy). Исторически проброс шёл на порт 3000 — это было конфигурацией без TLS.
 - **Домен:** `zelenavorona.ru` + `www.zelenavorona.ru`. Оба имени в одном блоке Caddy, поэтому сертификат покрывает их одним общим выпуском; с `www.` на отдельный адрес сертификат не действует.
 
 ### Стек инфраструктуры
@@ -165,20 +165,117 @@ Compose сам читает только `.env`; `.env.dev` указывают �
 
 
 ### Деплой на сервер
-Скрипт в репозитории: `deploy/deploy.ps1`. На сервере:
+
+Скрипт живёт **только на сервере, вне репозитория** — `C:\deploy-ecoved.ps1`. В git он не лежит: в `deploy/` хранится только `Caddyfile`. Запуск на сервере:
 
 ```
-powershell -ExecutionPolicy Bypass -File C:\ecoved-portal\deploy\deploy.ps1
+powershell -ExecutionPolicy Bypass -File C:\deploy-ecoved.ps1
 ```
 
-Что он делает: проверяет `.env` (домен и почта вместо `internal`) -> `git pull --ff-only` ->
-`docker compose down --remove-orphans` (без `-v`!) -> `docker compose up -d --build` ->
-проверяет с повторами, что `https://zelenavorona.ru/api/health` отвечает 200, и печатает
-логи Caddy с подсказками, если нет.
+Что делает: проверяет, что в `.env` не остался `CADDY_TLS=internal` (с ним контейнеры поднимаются «healthy», а посетители получают недоверенный сертификат — больше нигде эта ошибка не видна) -> `git pull --ff-only` -> `docker compose down --remove-orphans` (**без `-v`**, иначе том с сертификатом и ключом ACME удалится) -> `docker compose up -d --build` -> с повторами проверяет `https://zelenavorona.ru/api/health`, при неудаче печатает логи Caddy и расшифровку частых причин. Окно PowerShell остаётся открытым и при успехе, и при ошибке.
 
-Путь к репозиторию и ветка — параметры скрипта (`-Repo`, `-Branch`), по умолчанию
-`C:\ecoved-portal` и `master`.
+**Текст ниже — единственная копия скрипта.** На сервере это обычный файл, его легко потерять или перезаписать, поэтому он хранится здесь:
 
-Почему скрипт в репозитории, а не отдельным файлом на сервере: он обновляется вместе с
-кодом. Запущенный PowerShell читает файл целиком при старте, поэтому скрипт может
-обновить сам себя — правки применятся со следующего запуска.
+```powershell
+# EcovedPortal deploy. Run ON THE SERVER.
+#   powershell -ExecutionPolicy Bypass -File C:\deploy-ecoved.ps1
+#
+# ASCII only on purpose: PowerShell 5.1 reads .ps1 without BOM as ANSI, so any
+# non-ASCII text in this file can break the parser.
+
+$Repo   = "C:\ecoved-portal"
+$Branch = "master"
+
+$ErrorActionPreference = "Stop"
+
+# Every path ends here, so the window never closes by itself.
+function Stop-Here {
+    param([string] $Text, [string] $Color, [int] $Code)
+    Write-Host ""
+    Write-Host $Text -ForegroundColor $Color
+    Write-Host ""
+    Read-Host "Press Enter to close"
+    exit $Code
+}
+
+try {
+    if (-not (Test-Path $Repo)) { Stop-Here "No folder $Repo" Red 1 }
+    Set-Location $Repo
+
+    # Guard: with internal CA the site serves a certificate visitors' browsers do
+    # not trust, and containers still report "healthy" - nothing else would show it.
+    $envFile = Join-Path $Repo ".env"
+    if (-not (Test-Path $envFile)) { Stop-Here "No $envFile - did the repo get updated?" Red 1 }
+    if (Select-String -Path $envFile -Pattern "^\s*CADDY_TLS\s*=\s*internal\s*$" -Quiet) {
+        Stop-Here "CADDY_TLS=internal in .env - that is the DEV value, not this server" Red 1
+    }
+
+    Write-Host "=== 1. git pull ===" -ForegroundColor Cyan
+    git pull --ff-only origin $Branch
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Here "git pull failed (code $LASTEXITCODE). Local edits on the server?" Red 1
+    }
+
+    # -v is never added: ecovedportal_caddy_data holds the certificate and the ACME
+    # account key. Losing it means a new issuance, which is rate limited by
+    # Let's Encrypt (50 per domain per week).
+    Write-Host "=== 2. stop containers ===" -ForegroundColor Cyan
+    docker compose down --remove-orphans
+    if ($LASTEXITCODE -ne 0) { Stop-Here "docker compose down failed (code $LASTEXITCODE)" Red 1 }
+
+    Write-Host "=== 3. build and start ===" -ForegroundColor Cyan
+    docker compose up -d --build
+    if ($LASTEXITCODE -ne 0) { Stop-Here "docker compose up failed (code $LASTEXITCODE)" Red 1 }
+
+    # First certificate issuance takes 30-60 s, hence the retries.
+    # --resolve points at our own container instead of the public IP: from the
+    # server itself the domain may not resolve to the internal address.
+    Write-Host "=== 4. check HTTPS (first issuance up to 60 s) ===" -ForegroundColor Cyan
+    $healthy = $false
+    for ($i = 1; $i -le 8; $i++) {
+        Start-Sleep -Seconds 10
+        $code = curl.exe -sk -o NUL -w "%{http_code}" `
+            --resolve zelenavorona.ru:443:127.0.0.1 https://zelenavorona.ru/api/health
+        Write-Host "  attempt $i : HTTP $code"
+        if ($code -eq "200") { $healthy = $true; break }
+    }
+
+    if ($healthy) {
+        $redirect = curl.exe -s -o NUL -w "%{http_code}" `
+            --resolve zelenavorona.ru:80:127.0.0.1 http://zelenavorona.ru/
+        $www = curl.exe -sk -o NUL -w "%{http_code}" `
+            --resolve www.zelenavorona.ru:443:127.0.0.1 https://www.zelenavorona.ru/api/health
+        Write-Host "=== DONE ===" -ForegroundColor Green
+        Write-Host "Site:            https://zelenavorona.ru"
+        Write-Host "HTTP redirect:   HTTP $redirect (expected 308)"
+        Write-Host "www:             HTTP $www (expected 200)"
+        Write-Host ""
+        Write-Host "If the browser cannot open it while everything above is green:"
+        Write-Host "  router port forward 80/443 -> 192.168.1.67, or the DNS A record."
+        Stop-Here "OK" Green 0
+    }
+
+    Write-Host "=== HTTPS NOT ANSWERING ===" -ForegroundColor Red
+    Write-Host "Let's Encrypt failure reason is in lines containing 'acme':" -ForegroundColor Yellow
+    docker compose logs --tail=60 caddy
+    Write-Host ""
+    Write-Host "What to check:" -ForegroundColor Yellow
+    Write-Host "  'Connection refused' / timeout -> router does not forward 80/443 to 192.168.1.67"
+    Write-Host "  'no such host'                 -> A record does not point at 95.165.12.202"
+    Write-Host "  'too many certificates'        -> issuance blocked for a week, only waiting helps"
+    Write-Host "  port 80 taken on Windows       -> Get-NetTCPConnection -State Listen -LocalPort 80,443"
+    Stop-Here "FAILED" Red 1
+}
+catch {
+    Stop-Here "ERROR: $($_.Exception.Message)" Red 1
+}
+```
+
+**Скрипт обязан оставаться без не-ASCII символов.** Windows PowerShell 5.1 читает `.ps1` без BOM как ANSI, поэтому кириллица в тексте разъедает кавычки и файл перестаёт парситься (ошибка вида «В строке отсутствует завершающий символ»). Сохранять в ASCII или UTF-8 с BOM.
+
+### Быстрая проверка на самом сервере
+
+- **`http://localhost:3000`** — сайт в браузере без TLS: порт 3000 опубликован на `127.0.0.1`. Первая загрузка в dev-режиме компилирует страницы 10-30 с.
+- **`http://localhost` и `https://localhost` не годятся:** Caddy редиректит на HTTPS, а сертификата для имени `localhost` у него нет — TLS-рукопожатие падает. Проверять только по доменным именам.
+- Полный путь через Caddy: `curl.exe -sk --resolve zelenavorona.ru:443:127.0.0.1 https://zelenavorona.ru/api/health` (или прописать `127.0.0.1 zelenavorona.ru` в hosts, тогда откроется и из браузера).
+- Ни одна из проверок с самого сервера не доказывает, что работают проброс 80/443 и брендмауэр: `http://192.168.1.67/` с другого устройства в локальной сети и `https://zelenavorona.ru` с телефона по мобильному интернету — вот они.
